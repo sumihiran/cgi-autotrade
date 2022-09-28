@@ -31,7 +31,7 @@ public class TradingStrategy implements PriceListener, AutoCloseable {
     private final double orderPrice;
     private final int orderVolume;
 
-    private double prevTriggeredStockPrice = Double.NEGATIVE_INFINITY;
+    private boolean triggerLevelCrossed = false;
     private double stockPrice;
     private PriceSource priceSource;
     private ExecutionService executionService;
@@ -135,9 +135,9 @@ public class TradingStrategy implements PriceListener, AutoCloseable {
 
         if (shouldTrigger(price)) {
             executeOrder();
-            prevTriggeredStockPrice = price;
-        } else if (!isTriggerLevelSatisfied(price) && prevTriggeredStockPrice != Double.NEGATIVE_INFINITY) {
-            prevTriggeredStockPrice = Double.NEGATIVE_INFINITY;
+            triggerLevelCrossed = true;
+        } else if (!isTriggerLevelSatisfied(price) && triggerLevelCrossed) {
+            triggerLevelCrossed = false;
         }
     }
 
@@ -154,7 +154,7 @@ public class TradingStrategy implements PriceListener, AutoCloseable {
     }
 
     private boolean shouldTrigger(double price) {
-        return isTriggerLevelSatisfied(price) && prevTriggeredStockPrice == Double.NEGATIVE_INFINITY;
+        return isTriggerLevelSatisfied(price) && !triggerLevelCrossed;
     }
 
     private boolean isTriggerLevelSatisfied(double price) {
