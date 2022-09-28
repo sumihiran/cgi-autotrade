@@ -50,7 +50,7 @@ public class TradingStrategyTest {
     }
 
     @Test
-    public void shouldTriggerOrderWhenTriggerLevelReached()
+    public void OrderIsPlacedWhenTriggerLevelIsCrossed()
     {
         // Arrange
         var strategy = TradingStrategy
@@ -58,6 +58,7 @@ public class TradingStrategyTest {
         strategy.setExecutionService(executionService);
 
         // Act
+        strategy.priceUpdate("IBM", 99.3);
         strategy.priceUpdate("IBM", 101.0);
         strategy.priceUpdate("IBM", 105.0);
 
@@ -71,7 +72,7 @@ public class TradingStrategyTest {
     }
 
     @Test
-    public void shouldNotTriggerOrderWhenTriggerLevelNotReached()
+    public void shouldNotPlaceOrderWhenTriggerLevelNotReached()
     {
         // Arrange
         var strategy = TradingStrategy
@@ -89,7 +90,7 @@ public class TradingStrategyTest {
     }
 
     @Test
-    public void shouldTriggerOrderWhenTriggerLevelReachedTwice()
+    public void shouldPlaceOrderWhenTriggerLevelReachedTwice()
     {
         // Arrange
         var sellStrategy = TradingStrategy
