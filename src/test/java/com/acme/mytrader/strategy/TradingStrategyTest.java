@@ -2,6 +2,7 @@ package com.acme.mytrader.strategy;
 
 import com.acme.mytrader.execution.ExecutionService;
 import com.acme.mytrader.price.PriceSource;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -12,6 +13,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 public class TradingStrategyTest {
+    private ExecutionService executionService;
+
+    @Before
+    public void setUp()
+    {
+        executionService  = spy(ExecutionService.class);
+    }
+
     @Test
     public void tradingStrategySubscribeToPriceListener() {
         var priceSource = spy(PriceSource.class);
@@ -28,7 +37,6 @@ public class TradingStrategyTest {
 
     @Test
     public void monitorStockPriceWhenPriceUpdated() {
-        // Arrange
         var tradingStrategy = TradingStrategy
                 .placeSellOrderForSecurityWhenPriceAbove("IBM", 100, 101, 10);
 
@@ -44,9 +52,9 @@ public class TradingStrategyTest {
     @Test
     public void shouldTriggerOrderWhenTriggerLevelReached()
     {
+        // Arrange
         var strategy = TradingStrategy
                 .placeBuyOrderForSecurityWhenPriceAbove("IBM", 100, 101,50);
-        var executionService = spy(ExecutionService.class);
         strategy.setExecutionService(executionService);
 
         // Act
@@ -65,9 +73,9 @@ public class TradingStrategyTest {
     @Test
     public void shouldNotTriggerOrderWhenTriggerLevelNotReached()
     {
+        // Arrange
         var strategy = TradingStrategy
                 .placeSellOrderForSecurityWhenPriceBelow("IBM", 100, 99,10);
-        var executionService = spy(ExecutionService.class);
         strategy.setExecutionService(executionService);
 
         // Act
@@ -83,12 +91,12 @@ public class TradingStrategyTest {
     @Test
     public void shouldTriggerOrderWhenTriggerLevelReachedTwice()
     {
+        // Arrange
         var sellStrategy = TradingStrategy
                 .placeSellOrderForSecurityWhenPriceAbove("CGI", 50, 52,10);
         var buyStrategy = TradingStrategy
                 .placeBuyOrderForSecurityWhenPriceBelow("CGI", 45, 44,100);
 
-        var executionService = spy(ExecutionService.class);
         sellStrategy.setExecutionService(executionService);
         buyStrategy.setExecutionService(executionService);
 
