@@ -52,3 +52,24 @@ a specified price (e.g. 55.0). Don’t worry what units that is in.
 * Mockito
 * EasyMock
 * JMock
+
+### Sample
+
+Executes a single "buy" instruction for a specified number of lots (e.g. 100) as soon as the price of that stock is seen to be below
+a specified price (e.g. 55.0). Don’t worry what units that is in.
+
+Assumption: Trigger level price (e.g. 55.0) may not be equivalent to the order price
+
+```
+ExecutionService executionService = ...
+priceSource PriceSource = ...
+
+var buyStrategy = TradingStrategy
+    .placeBuyOrderForSecurityWhenPriceBelow("IBM", 55.0, 54.0, 100);
+    
+buyStrategy.setExecutionService(executionService);
+buyStrategy.setPriceSource(PriceSource); // subscribe to the observable
+
+buyStrategy.close(); // unsubscribe
+
+```
