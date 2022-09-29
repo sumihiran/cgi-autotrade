@@ -9,28 +9,31 @@ import java.util.Arrays;
 import java.util.Optional;
 
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 public class TradingStrategyTest {
     private ExecutionService executionService;
+    private PriceSource priceSource;
 
     @Before
-    public void setUp()
-    {
-        executionService  = spy(ExecutionService.class);
+    public void setUp() {
+        executionService = spy(ExecutionService.class);
+        priceSource = spy(PriceSource.class);
     }
 
     @Test
     public void tradingStrategySubscribeToPriceListener() {
-        var priceSource = spy(PriceSource.class);
         try (var tradingStrategy =
                      TradingStrategy.placeSellOrderForSecurityWhenPriceAbove("IBM", 100, 101, 10)) {
             assertNull(tradingStrategy.getPriceSource());
 
-            tradingStrategy.setPriceSource(priceSource);
+            tradingStrategy.subscribeAndExecute(priceSource, executionService);
 
             verify(priceSource, times(1)).addPriceListener(tradingStrategy);
+            assertEquals(priceSource, tradingStrategy.getPriceSource());
+            assertEquals(executionService, tradingStrategy.getExecutionService());
         }
         verify(priceSource, times(1)).removePriceListener(any());
     }
@@ -50,70 +53,46 @@ public class TradingStrategyTest {
     }
 
     @Test
-    public void OrderIsPlacedWhenTriggerLevelIsCrossed()
-    {
+    public void OrderIsPlacedWhenTriggerLevelIsCrossed() {
         // Arrange
         var strategy = TradingStrategy
-                .placeBuyOrderForSecurityWhenPriceAbove("IBM", 100, 101,50);
-        strategy.setExecutionService(executionService);
+                .placeBuyOrderForSecurityWhenPriceAbove("IBM", 100, 101, 50);
 
         // Act
+        strategy.subscribeAndExecute(priceSource, executionService);
+
         strategy.priceUpdate("IBM", 99.3);
         strategy.priceUpdate("IBM", 101.0);
         strategy.priceUpdate("IBM", 105.0);
 
         // Assert
-        assertEquals(executionService, strategy.getExecutionService().orElse(null));
-
         var resultStockPrice = strategy.getStockPrice();
         assertTrue(resultStockPrice.isPresent());
         assertEquals(Optional.of(105.0), resultStockPrice);
         verify(executionService, times(1)).buy("IBM", 101, 50);
+
+        assertNull(strategy.getPriceSource());
+        assertNull(strategy.getExecutionService());
     }
 
     @Test
-    public void shouldNotPlaceOrderWhenTriggerLevelNotReached()
-    {
+    public void shouldNotPlaceOrderWhenTriggerLevelNotReached() {
         // Arrange
         var strategy = TradingStrategy
-                .placeSellOrderForSecurityWhenPriceBelow("IBM", 100, 99,10);
-        strategy.setExecutionService(executionService);
+                .placeSellOrderForSecurityWhenPriceBelow("IBM", 100, 99, 10);
 
         // Act
-        strategy.priceUpdate("IBM", 100.0);
+        strategy.subscribeAndExecute(priceSource, executionService);
+
+        strategy.priceUpdate("IBM", 101.10);
         strategy.priceUpdate("IBM", 105.0);
 
         // Assert
         var resultStockPrice = strategy.getStockPrice();
         assertEquals(Optional.of(105.0), resultStockPrice);
         verify(executionService, times(0)).sell("IBM", 99, 10);
-    }
 
-    @Test
-    public void shouldPlaceOrderWhenTriggerLevelReachedTwice()
-    {
-        // Arrange
-        var sellStrategy = TradingStrategy
-                .placeSellOrderForSecurityWhenPriceAbove("CGI", 50, 52,10);
-        var buyStrategy = TradingStrategy
-                .placeBuyOrderForSecurityWhenPriceBelow("CGI", 45, 44,100);
-
-        sellStrategy.setExecutionService(executionService);
-        buyStrategy.setExecutionService(executionService);
-
-        var prices = Arrays.asList(40, 44, 51, 48, 42, 48, 52, 55, 46);
-
-        // Act
-        prices.forEach(price -> {
-            sellStrategy.priceUpdate("CGI", price);
-            buyStrategy.priceUpdate("CGI", price);
-        });
-
-        // Assert
-        assertEquals(Optional.of(46.0), sellStrategy.getStockPrice());
-        assertEquals(Optional.of(46.0), buyStrategy.getStockPrice());
-
-        verify(executionService, times(2)).sell("CGI", 52, 10);
-        verify(executionService, times(2)).buy("CGI", 44, 100);
+        assertNotNull(strategy.getPriceSource());
+        assertNotNull(strategy.getExecutionService());
     }
 }

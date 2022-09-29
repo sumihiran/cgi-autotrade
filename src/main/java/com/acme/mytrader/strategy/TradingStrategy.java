@@ -30,8 +30,6 @@ public class TradingStrategy implements PriceListener, AutoCloseable {
     private final String orderType;
     private final double orderPrice;
     private final int orderVolume;
-
-    private boolean triggerLevelCrossed = false;
     private double stockPrice;
     private PriceSource priceSource;
     private ExecutionService executionService;
@@ -130,14 +128,12 @@ public class TradingStrategy implements PriceListener, AutoCloseable {
         }
     }
 
-    private void onPriceUpdate(double price) {
+    private synchronized void onPriceUpdate(double price) {
         this.stockPrice = price;
 
         if (shouldTrigger(price)) {
             executeOrder();
-            triggerLevelCrossed = true;
-        } else if (!isTriggerLevelSatisfied(price) && triggerLevelCrossed) {
-            triggerLevelCrossed = false;
+            this.close();
         }
     }
 
@@ -154,10 +150,6 @@ public class TradingStrategy implements PriceListener, AutoCloseable {
     }
 
     private boolean shouldTrigger(double price) {
-        return isTriggerLevelSatisfied(price) && !triggerLevelCrossed;
-    }
-
-    private boolean isTriggerLevelSatisfied(double price) {
         if (triggerDirection.equals(DIRECTION_HIGH)) {
             return price > triggerLevelPrice;
         }
@@ -229,6 +221,20 @@ public class TradingStrategy implements PriceListener, AutoCloseable {
     }
 
     /**
+     * Subscribe this strategy to the given {@link PriceSource} and execute orders using the given
+     * {@code executionService}. If a {@link PriceSource} already subscribed it will be unsubscribed.
+     *
+     * @param priceSource      a {@link PriceSource} to subscribe
+     * @param executionService the {@link  ExecutionService} used to execute orders
+     */
+    public void subscribeAndExecute(PriceSource priceSource, ExecutionService executionService) {
+        this.close();
+        priceSource.addPriceListener(this);
+        this.priceSource = priceSource;
+        this.executionService = executionService;
+    }
+
+    /**
      * Returns the {@link PriceSource} currently subscribed to
      *
      * @return the subscribed {@link PriceSource}
@@ -238,41 +244,23 @@ public class TradingStrategy implements PriceListener, AutoCloseable {
     }
 
     /**
-     * Subscribe this strategy to the given {@link PriceSource}. If a {@link PriceSource} already subscribed it will
-     * be unsubscribed.
-     *
-     * @param priceSource a {@link PriceSource} to subscribe
-     */
-    public void setPriceSource(PriceSource priceSource) {
-        if (this.priceSource != null) {
-            this.close();
-        }
-        priceSource.addPriceListener(this);
-        this.priceSource = priceSource;
-    }
-
-    /**
      * Gets the {@link ExecutionService} in use
      *
      * @return an optional of {@link ExecutionService}
      */
-    public Optional<ExecutionService> getExecutionService() {
-        return Optional.of(executionService);
+    public ExecutionService getExecutionService() {
+        return executionService;
     }
 
-    /**
-     * Sets the order {@code ExecutionService}
-     *
-     * @param executionService the {@code ExecutionService}
-     */
-    public void setExecutionService(ExecutionService executionService) {
-        this.executionService = executionService;
-    }
 
     @Override
     public void close() {
-        if (this.priceSource != null) {
-            this.priceSource.removePriceListener(this);
+        if (this.priceSource == null) {
+            return;
         }
+
+        this.priceSource.removePriceListener(this);
+        this.priceSource = null;
+        this.executionService = null;
     }
 }
